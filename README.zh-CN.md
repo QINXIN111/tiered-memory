@@ -1,5 +1,7 @@
 # tiered-memory · 分层记忆
 
+[English](README.md) · **简体中文**
+
 [![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
 
 **你的 agent 常驻记忆文件满了。别再往里塞事实——往里放目录。**
@@ -10,6 +12,8 @@
 - **落磁盘**：真正的细节，纯 Markdown，用时才读
 
 不用向量库、不用嵌入模型、不用起服务。就是 Markdown + grep + Git。
+
+<img src="docs/demo.gif" width="820" alt="wikimem：init、add、search、show、lint">
 
 ```mermaid
 flowchart LR

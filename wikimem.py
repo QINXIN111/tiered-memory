@@ -275,8 +275,11 @@ def cmd_sync(message: str | None, as_json: bool) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     common = argparse.ArgumentParser(add_help=False)
-    common.add_argument("--root", help="memory root (default ~/.wikimem or $WIKIMEM_ROOT)")
-    common.add_argument("--index", help="always-injected index file (default <root>/MEMORY.md)")
+    # default=SUPPRESS so a subparser never overwrites a global flag given before the command
+    common.add_argument("--root", default=argparse.SUPPRESS,
+                        help="memory root (default ~/.wikimem or $WIKIMEM_ROOT)")
+    common.add_argument("--index", default=argparse.SUPPRESS,
+                        help="always-injected index file (default <root>/MEMORY.md)")
 
     ap = argparse.ArgumentParser(prog="wikimem", description="Tiered memory for AI agents.",
                                  parents=[common])
@@ -315,9 +318,9 @@ def main(argv: list[str] | None = None) -> int:
     ns = ap.parse_args(argv)
 
     global ROOT, INDEX
-    if ns.root:
+    if getattr(ns, "root", None):
         ROOT = Path(ns.root).expanduser()
-    if ns.index:
+    if getattr(ns, "index", None):
         INDEX = Path(ns.index).expanduser()
 
     if ns.cmd == "init":

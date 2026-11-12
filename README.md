@@ -1,5 +1,7 @@
 # tiered-memory
 
+**English** · [简体中文](README.zh-CN.md)
+
 [![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
 
 **Your agent's always-on memory file is full. Stop putting facts in it — put an index in it.**
@@ -10,6 +12,8 @@ One 341-line file, zero dependencies. It splits agent memory into two tiers:
 - **on disk:** the details — plain Markdown, read only when needed
 
 No vector database. No embeddings. No service to run. Markdown, grep and Git.
+
+<img src="docs/demo.gif" width="820" alt="wikimem: init, add, search, show, lint in the terminal">
 
 ```mermaid
 flowchart LR

@@ -118,3 +118,17 @@ def test_index_lists_titles(root, capsys):
 
 def test_sync_without_git_fails(root):
     assert wikimem.main(["sync"]) == 2
+
+
+def test_root_flag_before_subcommand(tmp_path, capsys):
+    target = tmp_path / "elsewhere"
+    assert wikimem.main(["--root", str(target), "init"]) == 0
+    capsys.readouterr()
+    assert (target / "wiki" / "project.md").exists()
+
+
+def test_root_flag_after_subcommand(tmp_path, capsys):
+    target = tmp_path / "later"
+    assert wikimem.main(["init", "--root", str(target)]) == 0
+    capsys.readouterr()
+    assert (target / "wiki" / "project.md").exists()
