@@ -4,7 +4,7 @@
 
 [![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
 
-**[▶ 在线演示](https://htmlpreview.github.io/?https://github.com/QINXIN111/tiered-memory/blob/master/docs/demo.html)** — 点开就能逛一个示例记忆地图，不用安装。
+**想先看看效果？把 [`docs/demo.html`](docs/demo.html) 下载到本地打开即可——一份示例记忆地图，不用起服务。
 
 **你的 agent 常驻记忆文件满了。别再往里塞事实——往里放目录。**
 
