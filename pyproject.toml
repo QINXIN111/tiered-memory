@@ -1,0 +1,15 @@
+[project]
+name = "tiered-memory"
+version = "0.1.0"
+description = "Keep your agent's always-on memory small: an index in context, details on disk."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "QINXIN111" }]
+keywords = ["ai-agents", "memory", "llm", "context-engineering"]
+
+[project.scripts]
+wikimem = "wikimem:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
