@@ -120,6 +120,10 @@ $ wikimem show infra --grep 8080
 
 Or don't type any of that. Tell the AI "remember this" and let it run the commands.
 
+Fifteen seconds, sped up:
+
+<img src="docs/demo.gif" width="820" alt="wikimem: init, add, search, show, lint">
+
 ## Let it draw you a map
 
 You do not draw anything. You say one sentence:

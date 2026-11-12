@@ -120,6 +120,10 @@ $ wikimem show infra --grep 8080
 
 当然你也可以什么都不记，直接跟 AI 说"这条记一下"，让它自己去敲命令。
 
+动图版，看完大概十五秒：
+
+<img src="docs/demo-zh.gif" width="820" alt="wikimem：初始化、记两条、搜一下、体检">
+
 ## 让它给你画一张
 
 这张图不用你动手。跟 AI 说一句：
