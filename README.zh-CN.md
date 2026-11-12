@@ -29,7 +29,7 @@ AI 的记忆也该这么放。
 ```mermaid
 flowchart LR
     subgraph CTX["每次对话都塞给它的（约 2000 字）"]
-      IDX["MEMORY.md<br/>服务器：端口和部署 → wiki:infra<br/>项目：怎么跑起来 → wiki:project<br/>决定：为什么选这个数据库 → wiki:decisions"]
+      IDX["MEMORY.md<br/>infra → wiki:infra<br/>project → wiki:project<br/>decisions → wiki:decisions"]
     end
     subgraph DISK["躺在硬盘上（没有上限）"]
       N1["wiki/infra.md<br/>40 行"]

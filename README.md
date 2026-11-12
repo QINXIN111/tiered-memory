@@ -29,7 +29,7 @@ Agent memory should work the same way.
 ```mermaid
 flowchart LR
     subgraph CTX["Shown to the AI every turn (~2,000 chars)"]
-      IDX["MEMORY.md<br/>server: ports and deploy → wiki:infra<br/>project: how to run it → wiki:project<br/>decisions: why this database → wiki:decisions"]
+      IDX["MEMORY.md<br/>infra → wiki:infra<br/>project → wiki:project<br/>decisions → wiki:decisions"]
     end
     subgraph DISK["Sitting on disk (no limit)"]
       N1["wiki/infra.md<br/>40 lines"]
