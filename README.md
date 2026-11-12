@@ -113,16 +113,16 @@ sequenceDiagram
     participant U as You
     participant A as Agent
     participant C as wikimem
-    participant D as wiki/*.md
+    participant D as notes
 
-    U->>A: "why is staging slow?"
-    A->>A: reads MEMORY.md (index only)
-    Note over A: sees "infra: ports, deploy → wiki:infra"
-    A->>C: wikimem show infra --grep staging
-    C->>D: grep the note
-    D-->>C: matching lines
-    C-->>A: 3 lines of context
-    A-->>U: answer, citing the actual note
+    U->>A: "staging is slow?"
+    A->>A: read MEMORY.md (index)
+    Note over A: sees "infra → wiki:infra"
+    A->>C: show infra --grep staging
+    C->>D: grep
+    D-->>C: 3 lines
+    C-->>A: 3 lines
+    A-->>U: answer + citation
 ```
 
 Two things make this work:
@@ -183,12 +183,12 @@ sequenceDiagram
     participant B as Agent B (Codex)
     participant G as git remote
 
-    A->>G: wikimem sync (pull → commit → push)
-    B->>G: wikimem sync (pull → commit → push)
-    Note over A,B: both appended to wiki/infra.md
-    G-->>A: rebase keeps both bullets, ordered by date
-    A->>A: wikimem lint → "conflict: v1.2.0 vs v1.3.0"
-    Note over A: asks a human which one is true
+    A->>G: sync (pull, commit, push)
+    B->>G: sync (pull, commit, push)
+    Note over A,B: both wrote to wiki/infra.md
+    G-->>A: rebase keeps both, by date
+    A->>A: lint → "v1.2.0 vs v1.3.0"
+    Note over A: ask a human
 ```
 
 Four rules, all enforced by the tool:

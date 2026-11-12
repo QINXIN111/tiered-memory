@@ -113,16 +113,16 @@ sequenceDiagram
     participant U as 你
     participant A as Agent
     participant C as wikimem
-    participant D as wiki/*.md
+    participant D as 笔记
 
-    U->>A: "预发为什么慢？"
-    A->>A: 读 MEMORY.md（只有索引）
-    Note over A: 看到 "infra: 端口、部署 → wiki:infra"
-    A->>C: wikimem show infra --grep 预发
-    C->>D: grep 笔记
-    D-->>C: 命中的几行
-    C-->>A: 3 行上下文
-    A-->>U: 回答，并引用笔记原文
+    U->>A: 预发为什么慢？
+    A->>A: 读 MEMORY.md
+    Note over A: 见 "infra → wiki:infra"
+    A->>C: show infra --grep 预发
+    C->>D: grep
+    D-->>C: 3 行
+    C-->>A: 3 行
+    A-->>U: 回答 + 引用
 ```
 
 两件事让它成立：
@@ -183,12 +183,12 @@ sequenceDiagram
     participant B as Agent B（Codex）
     participant G as git remote
 
-    A->>G: wikimem sync（pull → commit → push）
-    B->>G: wikimem sync（pull → commit → push）
-    Note over A,B: 两边都往 wiki/infra.md 追加了内容
-    G-->>A: rebase 保留双方，按日期排序
-    A->>A: wikimem lint → "冲突：v1.2.0 vs v1.3.0"
-    Note over A: 去问人哪条才是真的
+    A->>G: sync（pull、commit、push）
+    B->>G: sync（pull、commit、push）
+    Note over A,B: 都写了 wiki/infra.md
+    G-->>A: rebase 保留双方，按日期
+    A->>A: lint → 版本冲突
+    Note over A: 去问人
 ```
 
 四条规则，工具替你执行：
