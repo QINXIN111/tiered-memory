@@ -1,5 +1,7 @@
 # tiered-memory
 
+[![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
+
 **Your agent's always-on memory file is full. Stop putting facts in it — put an index in it.**
 
 One 341-line file, zero dependencies that splits agent memory into two tiers:
