@@ -4,318 +4,202 @@
 
 [![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
 
-Want to see it before installing? Open [`docs/demo.html`](docs/demo.html) locally — a sample memory map, no server needed.
+Want to see it first? Download [`docs/demo.html`](docs/demo.html) and double click it. Nothing to install.
 
-**Your agent's always-on memory file is full. Stop putting facts in it — put an index in it.**
+**Your AI has a bad memory. This gives it a notebook.**
 
-One 341-line file, zero dependencies. It splits agent memory into two tiers:
+## You have been here before
 
-- **in context:** a small index — one line per topic, plus a pointer
-- **on disk:** the details — plain Markdown, read only when needed
+You spend half an hour teaching an AI about your project. It finally gets it. Next morning you open a new chat and it asks, politely, what you would like to do today.
 
-No vector database. No embeddings. No service to run. Markdown, grep and Git.
+So you explain everything again. By week three you stop bothering.
 
-> **If you are an AI agent:** read [AGENTS.md](AGENTS.md) first — it is the contract for
-> reading and writing this memory without corrupting it.
+Most people blame the model. That is only half of it. Most agents start every conversation by reading one small note: who you are, what the project is, which mistakes not to repeat. That note has a character limit, usually a couple thousand characters.
 
-<img src="docs/demo.gif" width="820" alt="wikimem: init, add, search, show, lint in the terminal">
+When it fills up, two things happen. New facts can't get in, so the agent makes last week's mistake again. Or old facts get pushed out, and it forgets what you decided on Monday.
+
+Two thousand characters. That is roughly one short essay.
+
+## Think of a desk and a drawer
+
+The only thing on your desk is a sticky note: invoices are in the second drawer on the left. The invoices themselves live in the drawer.
+
+Agent memory should work the same way.
 
 ```mermaid
 flowchart LR
-    subgraph CTX["Context window — every turn, ~2,000 chars"]
-      IDX["MEMORY.md<br/>infra: ports, deploy → wiki:infra<br/>project: stack, commands → wiki:project<br/>decisions: why Postgres → wiki:decisions"]
+    subgraph CTX["Shown to the AI every turn (~2,000 chars)"]
+      IDX["MEMORY.md<br/>server: ports and deploy → wiki:infra<br/>project: how to run it → wiki:project<br/>decisions: why this database → wiki:decisions"]
     end
-    subgraph DISK["Disk — unlimited, read on demand"]
+    subgraph DISK["Sitting on disk (no limit)"]
       N1["wiki/infra.md<br/>40 lines"]
       N2["wiki/project.md<br/>25 lines"]
       N3["wiki/decisions.md<br/>18 lines"]
     end
-    IDX -. "wikimem show infra" .-> N1
-    IDX -. "wikimem show project" .-> N2
-    IDX -. "wikimem show decisions" .-> N3
+    IDX -. "open when needed" .-> N1
+    IDX -. "open when needed" .-> N2
+    IDX -. "open when needed" .-> N3
 ```
 
-## The problem, with a made-up project
+The note holds a table of contents. The details live in the drawer. The agent walks over and opens it when it actually needs something.
 
-Say you are building **aurora-api** — a small service, one agent helping you. Nothing
-exotic happens; you just keep telling it things.
+## What happens if you don't
 
-| week | what the agent learns | memory file |
+Here is a made up project. You are building a small service called aurora-api with one AI helping you.
+
+| week | what it learns | the note |
 |---|---|---|
-| 1 | stack, run command, port, deploy step | 8 facts — fits easily |
-| 3 | retry policy, the staging quirk, why no ORM | 25 facts — getting tight |
-| 6 | two incidents, a rollback procedure, three conventions | **40 facts — over the cap** |
+| 1 | stack, start command, port, deploy step | 8 facts, plenty of room |
+| 3 | retry policy, a weird staging bug, why not that library | 25 facts, getting tight |
+| 6 | two incidents, a rollback procedure, three team rules | 40 facts, full |
 
-At week 6 the file is full. Take a concrete example — the agent learns that the worker
-must start after migrations. From there it has exactly two outcomes:
+Once it is full, every new fact faces the same two options.
 
 ```mermaid
 flowchart TD
-    A["New fact discovered"] --> B{"Memory file full?"}
-    B -- no --> C["Append it"]
-    B -- yes --> D["Overwrite an older fact"]
-    B -- yes --> E["Don't write it at all"]
-    D --> F["History lost.<br/>Next month: 'why did we stop doing X?'"]
-    E --> G["Same mistake next week.<br/>The agent forgot what you told it."]
+    A["A new fact arrives"] --> B{"Room left?"}
+    B -- "yes" --> C["Write it down"]
+    B -- "no" --> D["Erase an older fact"]
+    B -- "no" --> E["Give up, don't write it"]
+    D --> F["History gone<br/>Next month: why did we change that?"]
+    E --> G["Same mistake next week<br/>You told it last Tuesday"]
     style F fill:#4a1f1f,stroke:#c96,color:#fff
     style G fill:#4a1f1f,stroke:#c96,color:#fff
 ```
 
-Adding a bigger memory file does not fix this. Whatever the cap is, you hit it again —
-and every extra token of always-on memory is paid on **every single turn**.
+Could you just use a bigger note? Sure. You will hit the same wall a few weeks later. And every extra character of always-on memory costs money on every single turn.
 
-## The idea: spend the budget on a table of contents
+## So split it in two
 
 ```mermaid
 flowchart LR
-    Q["A fact you just learned"] --> R{"Needed in the<br/>next session?"}
-    R -- "every session" --> S["One line in MEMORY.md<br/>fact + pointer"]
-    R -- "sometimes" --> T["A bullet in wiki/topic.md"]
-    R -- "rarely, but must be findable" --> U["A bullet + a lint-checked note"]
-    S --> V["~80 characters each"]
-    T --> W["Unlimited"]
+    Q["A fact you just learned"] --> R{"Will you need it<br/>next session?"}
+    R -- "every day" --> S["One line on the note<br/>fact plus a pointer"]
+    R -- "sometimes" --> T["A bullet in a note on disk"]
+    R -- "rarely<br/>but it must be findable" --> U["A note, plus a lint check"]
+    S --> V["About 80 characters"]
+    T --> W["No limit"]
     U --> W
 ```
 
-Rule of thumb: **the index holds reminders and pointers, not knowledge.**
-If a line needs three sentences to be useful, it belongs in a note.
+The rule is short. The note holds reminders and signposts, not knowledge. If something needs three sentences to be useful, it belongs in a note.
 
-## Before / after, same project
+## Three steps
 
-| | all-in-context | tiered |
-|---|---|---|
-| always injected | every fact, compressed until vague | 8–12 pointer lines |
-| where details live | nowhere — they were compressed away | `wiki/*.md`, verbatim |
-| adding fact #41 | overwrite something | append a bullet |
-| reviewing | read a wall of text | read one line, open the note if needed |
-| diff / rollback | none | `git diff`, `git log` |
-
-## Quickstart
+First, install it.
 
 ```bash
 git clone https://github.com/QINXIN111/tiered-memory.git
 cd tiered-memory
-python3 wikimem.py init                 # creates ~/.wikimem/{MEMORY.md,wiki/}
-wikimem scan                            # what do the agents on this machine already know?
-wikimem viz                             # open the map in a browser
-ln -s "$PWD/wikimem.py" ~/.local/bin/wikimem && chmod +x wikimem.py
+python3 wikimem.py init
 ```
+
+You get a `~/.wikimem` folder with a note (`MEMORY.md`) and a drawer (`wiki/`).
+
+Second, tell your AI the rule. Add this to its system prompt:
+
+```
+Memory is tiered. MEMORY.md is only the index.
+When you see wiki:xxx, run wikimem show xxx before answering. Don't guess from the index line.
+```
+
+This one line is what makes the whole thing work. Without it, the agent sees a signpost and walks past it.
+
+Third, use it during the day.
 
 ```console
-$ wikimem add infra "api listens on 8080; deploy via ./deploy.sh"
+$ wikimem add infra "api listens on 8080, deploy with ./deploy.sh"
 appended to wiki:infra
 
-$ wikimem search "api 8080"
-wiki:infra:3  - [2026-11-12][you] api listens on 8080; deploy via ./deploy.sh
+$ wikimem search "8080"
+wiki:infra:3  - [2026-11-12][you] api listens on 8080, deploy with ./deploy.sh
 
-$ wikimem show infra --grep 8080 --ctx 0
-  3| - [2026-11-12][you] api listens on 8080; deploy via ./deploy.sh
+$ wikimem show infra --grep 8080
+  3| - [2026-11-12][you] api listens on 8080, deploy with ./deploy.sh
 ```
 
-Then add one line to your index file:
+Or don't type any of that. Tell the AI "remember this" and let it run the commands.
 
-```
-infra: ports, deploy, rollback → wiki:infra
-```
+## Let it draw you a map
 
-## How the agent actually uses it
+You do not draw anything. You say one sentence:
 
-```mermaid
-sequenceDiagram
-    participant U as You
-    participant A as Agent
-    participant C as wikimem
-    participant D as notes
+> draw me a map of what you remember
 
-    U->>A: "staging is slow?"
-    A->>A: read MEMORY.md (index)
-    Note over A: sees "infra → wiki:infra"
-    A->>C: show infra --grep staging
-    C->>D: grep
-    D-->>C: 3 lines
-    C-->>A: 3 lines
-    A-->>U: answer + citation
-```
-
-Two things make this work:
-
-1. the pointer is **explicit** (`wiki:infra`), so the model knows there is more
-2. the lookup is **cheap** — one command, a few lines back, not a whole file
-
-**The one failure mode:** the model sees the pointer and answers from the index line anyway.
-Fix it in the index file's first line, in the agent's system prompt, and in review:
-
-> Memory is tiered. This file is only the index. If you see `wiki:xxx`,
-> run `wikimem show xxx` before answering. Never guess from the index line.
-
-## A map for humans (ask your agent for it)
-
-You do not draw this by hand. You ask your agent, in one sentence:
-
-> "draw me a map of what you remember"
-
-The agent runs one command and hands you a file path:
+The agent runs one command and tells you where the file is:
 
 ```bash
-wikimem viz          # writes <root>/memory-map.html
+wikimem viz
 ```
 
-**It is a local file, not a service.** Open it with a double click:
+It is a local file, not an online service. Double click it:
 
 | | |
 |---|---|
-| runs offline | opens from `file://`, no server, no port |
-| no network at all | no CDN, no fonts, no telemetry, no analytics |
-| nothing uploaded | the HTML embeds your notes as text in the file itself |
-| nothing to clean up | delete the file and it is gone |
-
-That is the whole point: the agent does the drawing, you get a picture, and your
-memory never leaves the machine.
+| works offline | opens from your disk, no server, no port |
+| no network calls | no CDN, no web fonts, no analytics |
+| nothing uploaded | your notes are written into the page itself |
+| nothing to clean up | delete the file when you are done |
 
 ![memory map](docs/viz.png)
 
-- **left:** exactly what the model sees every turn (with a copy button)
-- **right:** the notes, click to expand
-- **filter:** type `deploy` or `8081` and every matching fact lights up
+On the left is exactly what the AI sees every turn. On the right is everything in the drawer, click a note to open it. There is a search box too. Type `deploy` or `8080` and the matching lines light up.
 
-This also answers "where did my memory go?" — beginners assume facts vanish when they
-leave the context window. The map shows the second tier sitting right there.
+This is also the answer to "where did my memory go". It didn't go anywhere. It moved from the desk into the drawer.
 
-## Commands
+## What if several agents share it
 
-| command | what it does |
-|---|---|
-| `wikimem init` | create `MEMORY.md`, `wiki/`, and a sample note |
-| `wikimem search "a b"` | all words must match; prints `wiki:topic:line` |
-| `wikimem show infra --grep port --ctx 2` | only the matching lines, with context |
-| `wikimem add infra "text"` | append a stamped bullet `- [date][agent] text` |
-| `wikimem lint` | duplicates, stale notes, version conflicts, index budget |
-| `wikimem index` | rebuild `wiki/INDEX.md` |
-| `wikimem viz` | write a local, offline HTML memory map — nothing uploaded |
-| `wikimem scan` | list local agent session stores — read-only, nothing copied |
-| `wikimem sync` | `git pull --rebase` → commit → push to **every** remote |
+They will bump into each other. Four rules keep that from turning into a mess, and the tool enforces all four:
 
-Flags: `--root DIR`, `--index FILE`, `--json` on `search`/`show`/`lint`/`sync`.
+1. One writer per note. Two agents that never touch the same file cannot conflict.
+2. Append, never rewrite. Every entry is stamped with a date and the agent's name. If two entries disagree, both stay and a human decides.
+3. Pull before you write. You see what the other agent just wrote, so a conflict shows up in seconds instead of next week.
+4. Report conflicts, never merge them. Two values for the same version number get flagged. The tool does not pick a winner.
 
-## Lint: what it catches
+That last rule matters most. The worst memory bug is not a missing fact. It is two different records quietly blended into one false one, which you then trust.
 
-```mermaid
-flowchart LR
-    L["wikimem lint"] --> A1["duplicate lines<br/>same text in two places"]
-    L --> A2["stale notes<br/>untouched for 120 days"]
-    L --> A3["version conflicts<br/>v1.2.0 and v1.3.0 in one note"]
-    L --> A4["index budget<br/>MEMORY.md over N chars"]
-    L --> A5["missing title<br/>note without an H1"]
-    style L fill:#1f3a2a,stroke:#5a9,color:#fff
-```
+## What it does not do
 
-```console
-$ wikimem lint
-[duplicate] wiki:infra:9 ≈ wiki:infra:4
-[conflict] wiki:deploy has versions v1.2.0, v1.3.0
-[stale 143d] wiki:legacy
-[budget] 2410 chars > 2200 in ~/.wikimem/MEMORY.md
+It does not summarise for you. Deciding what to remember is a judgement call. Full automation turns noise and one-off conclusions into "facts" that mislead you later.
 
-4 problem(s)
-```
+It does not dump everything into the prompt. That is not memory, that is a repeat button.
 
-It only **reports**. It never edits, never merges, never deletes. Deleting a fact is a
-judgement call, and it should cost a human five seconds of thinking.
+It does not use a database. You cannot read a database diff, you cannot roll it back, and moving it to another machine takes an export. Plain text plus Git covers it.
 
-## Multiple agents, one memory
+## Questions people actually ask
 
-```mermaid
-sequenceDiagram
-    participant A as Agent A (Claude Code)
-    participant B as Agent B (Codex)
-    participant G as git remote
+I don't use a terminal. Ask the AI to run it. This repo is built for agents. You only need two phrases: remember this, and show me.
 
-    A->>G: sync (pull, commit, push)
-    B->>G: sync (pull, commit, push)
-    Note over A,B: both wrote to wiki/infra.md
-    G-->>A: rebase keeps both, by date
-    A->>A: lint → "v1.2.0 vs v1.3.0"
-    Note over A: ask a human
-```
+Will my notes be uploaded anywhere. No. The files stay on your disk, and the map is a local HTML file with no network requests in it.
 
-Four rules, all enforced by the tool:
+Will it store my passwords. The rule is written into the tool: store where a secret lives, never the secret. Paths, not values.
 
-1. **Partition by domain** — `wiki/<domain>/<topic>.md`, one writer per domain.
-   Most conflicts never happen because two agents never touch the same file.
-2. **Append, never rewrite** — `add` stamps `[date][agent]`. Two disagreeing entries
-   both survive; a human or a lead agent decides.
-3. **Pull before you write** — `sync` does `pull --rebase` first, so conflicts surface
-   in seconds instead of after a week.
-4. **Report conflicts, never auto-merge** — lint flags the same field with two values
-   and stops there.
+What if it remembers something wrong. Open the note with `wikimem show`, edit the markdown. Want the old version back, use git.
 
-**The most dangerous memory bug is not a missing fact — it is a silently merged wrong one.**
+Do I have to use Git. No, but you should. It gives you history, conflict warnings, and an off-site copy for free.
 
-### Why not CRDTs / a memory service / shared SQLite
+## Things that are adjacent
 
-| option | why not |
-|---|---|
-| CRDT | solves concurrent editing for large collaborative datasets; complexity dwarfs the benefit for a few hundred facts |
-| central memory service | a single point of failure, and it needs the network for something that should work offline |
-| shared SQLite | you end up writing your own locking and replication — a worse Git |
-| vector store | see below |
+This space is crowded. Here is how the neighbours differ:
 
-Git is not chosen because it is modern. It is chosen because versioning, conflict
-detection, audit trail, rollback and off-site backup arrive in one dependency every
-developer already has.
-
-## Why an index instead of a vector store
-
-| | vector DB | tiered-memory |
+| project | their approach | how this differs |
 |---|---|---|
-| setup | embedding model, index, service | one file |
-| explainability | "top-k looked similar" | you can read the line it matched |
-| cost per recall | a model call | zero |
-| diff-able | no | `git diff` |
-| realistic corpus | millions of documents | tens to hundreds of facts |
+| [ourmem/omem](https://github.com/ourmem/omem) | a memory service that several tools plug into | this is a few files, nothing to operate |
+| [bothouse](https://github.com/zuiho-kai/bothouse) | put several AIs in a group chat with shared memory | this does not build a chat room, just a shared notebook |
+| [opc-nexus](https://github.com/h4dex/opc-nexus) | desktop manager that isolates memory per project | the opposite trade: this shares by default and handles conflicts with rules |
 
-Agent memory is tens to hundreds of facts, not a document corpus. Grep over a few
-hundred kilobytes returns in about a millisecond — and you can *see* why it matched.
+Short version. Most projects solve how agents sync state while running. This one solves what that shared state should look like on disk so it stays cheap, reviewable, and conflict aware.
 
-## Related work
-
-"Shared memory for agents" is a crowded space. What exists, and where this differs:
-
-| project | approach | difference |
-|---|---|---|
-| [ourmem/omem](https://github.com/ourmem/omem) | service + "spaces", plugins for multiple CLIs | runtime service; this is files + Git, nothing to operate |
-| [mic1on/multi-agent-memory](https://github.com/mic1on/multi-agent-memory) | local-first shared memory for Codex / Pi / OpenCode / Claude Code | same goal, different storage; this adds an explicit context-budget model |
-| [one-bit/oc-mnemoria](https://github.com/one-bit/oc-mnemoria) | "hive mind" for OpenCode, Rust engine | engine-bound; this is agent-agnostic plain text |
-| TencentDB Agent Memory (Team Memory) | managed memory service | hosted; this runs offline |
-| [bothouse](https://github.com/zuiho-kai/bothouse) | group chat + one shared Markdown memory | puts agents in a chat room; this keeps a shared *store* and lets each agent read what it needs |
-| [opc-nexus](https://github.com/h4dex/opc-nexus) | desktop agent manager, **isolates** memory per project | the opposite trade-off: isolation for multi-tenant safety |
-
-The short version: most projects solve "how do agents share state at runtime".
-This one solves "what should shared state look like on disk so that sharing stays
-cheap, reviewable and conflict-aware".
-
-## What it deliberately does not do
-
-- **No automatic extraction.** Writing memory is a judgement call; automation turns
-  noise and one-off conclusions into "facts" that later steer the agent.
-- **No full-context injection.** Loading everything is how you get back to the wall.
-- **No database.** If a tool can't `diff` it, it doesn't belong in memory.
-
-## When this is the wrong tool
-
-- You need semantic recall over thousands of long documents → use a vector store.
-- You need real-time multi-writer editing of one shared document → CRDT.
-- You want the agent to manage memory with zero human judgement → this will feel
-  restrictive on purpose.
-
-## Repo layout
+## Looking at the code
 
 ```
-wikimem.py              the whole CLI (341 lines)
-tests/                  14 pytest cases
-examples/               a small memory root you can copy
-docs/design.md          longer notes: what we tried, what we rejected
+wikimem.py      the whole CLI (341 lines)
+tests/          22 tests
+examples/       a small memory root you can copy
+docs/design.md  longer notes on what we tried and rejected
 ```
+
+If you are an AI reading this, start with [AGENTS.md](AGENTS.md). That is the contract for reading and writing this memory without breaking it.
 
 ## License
 

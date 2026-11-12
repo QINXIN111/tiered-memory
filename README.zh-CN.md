@@ -1,315 +1,205 @@
-# tiered-memory · 分层记忆
+# tiered-memory
 
 [English](README.md) · **简体中文**
 
 [![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
 
-想先看看效果？把 [`docs/demo.html`](docs/demo.html) 下载到本地打开即可——一份示例记忆地图，不用起服务。
+想先看看它长什么样？把 [`docs/demo.html`](docs/demo.html) 下载下来双击打开就行，不用装东西。
 
-**你的 agent 常驻记忆文件满了。别再往里塞事实——往里放目录。**
+**你家的 AI 记性不太好。这个工具给它配了个笔记本。**
 
-一个零依赖的 341 行脚本，把 agent 记忆拆成两层：
+## 一个你肯定遇到过的场景
 
-- **进上下文**：一份小索引，一行一个主题 + 一个指针
-- **落磁盘**：真正的细节，纯 Markdown，用时才读
+你跟 AI 聊了半个钟头，它终于搞懂你的项目了。第二天开新对话，它一脸茫然地问你：请问您想做什么？
 
-不用向量库、不用嵌入模型、不用起服务。就是 Markdown + grep + Git。
+你只好把昨天说过的话再说一遍。到第三周，你已经懒得说了。
 
-> **如果你是 AI agent**：先读 [AGENTS.md](AGENTS.md) —— 那是读写这套记忆时必须遵守的契约。
+很多人以为这是模型笨。不全是。大部分 AI 每次开新会话，只会读一张小纸条，上面写着你是谁、项目是什么、哪些坑别踩。这张纸条有字数上限，一般两千字出头。
 
-<img src="docs/demo.gif" width="820" alt="wikimem：init、add、search、show、lint">
+写满了会出两种事。新的塞不进去，它下周再犯同样的错。或者旧的被挤掉，它忘了你们上周才定好的事。
+
+两千字，大概就是一篇短作文的长度。
+
+## 换个说法：桌面和抽屉
+
+你办公桌上只会放一张便签，写着"发票在左边第二个抽屉"。真正的发票都在抽屉里。
+
+AI 的记忆也该这么放。
 
 ```mermaid
 flowchart LR
-    subgraph CTX["上下文窗口 — 每轮都注入，约 2000 字"]
-      IDX["MEMORY.md<br/>infra: 端口、部署 → wiki:infra<br/>project: 技术栈、命令 → wiki:project<br/>decisions: 为什么用 Postgres → wiki:decisions"]
+    subgraph CTX["每次对话都塞给它的（约 2000 字）"]
+      IDX["MEMORY.md<br/>服务器：端口和部署 → wiki:infra<br/>项目：怎么跑起来 → wiki:project<br/>决定：为什么选这个数据库 → wiki:decisions"]
     end
-    subgraph DISK["磁盘 — 无上限，按需读取"]
+    subgraph DISK["躺在硬盘上（没有上限）"]
       N1["wiki/infra.md<br/>40 行"]
       N2["wiki/project.md<br/>25 行"]
       N3["wiki/decisions.md<br/>18 行"]
     end
-    IDX -. "wikimem show infra" .-> N1
-    IDX -. "wikimem show project" .-> N2
-    IDX -. "wikimem show decisions" .-> N3
+    IDX -. "要细节时去翻" .-> N1
+    IDX -. "要细节时去翻" .-> N2
+    IDX -. "要细节时去翻" .-> N3
 ```
 
-## 问题：拿一个虚构项目说
+便签上只写目录，细节放抽屉。AI 需要的时候自己跑去翻。
 
-假设你在写 **aurora-api**，一个小服务，一个 agent 帮你。没有什么离奇的事发生，
-你只是一直在告诉它东西。
+## 不这么做的下场
 
-| 周 | agent 学到了什么 | 记忆文件 |
+拿个假项目举例。你在做一个叫 aurora-api 的小服务，有一个 AI 帮你。
+
+| 第几周 | 它学到的东西 | 那张纸条 |
 |---|---|---|
-| 第 1 周 | 技术栈、启动命令、端口、部署步骤 | 8 条 —— 轻松装下 |
-| 第 3 周 | 重试策略、预发环境的怪癖、为什么不用 ORM | 25 条 —— 开始紧张 |
-| 第 6 周 | 两次事故、一套回滚流程、三条约定 | **40 条 —— 超出上限** |
+| 第 1 周 | 技术栈、启动命令、端口、怎么部署 | 8 条，随便写 |
+| 第 3 周 | 重试策略、预发环境有个怪毛病、为什么不用某个库 | 25 条，开始挤 |
+| 第 6 周 | 两次事故、一套回滚流程、三条团队约定 | 40 条，塞不下 |
 
-第 6 周文件满了。举个具体的例子：agent 学到「worker 必须在迁移之后启动」。从这一刻起，
-这条事实只有两种结局：
+塞不下以后，它每学到一条新东西，都只有两个选择。
 
 ```mermaid
 flowchart TD
-    A["发现一条新事实"] --> B{"记忆文件满了吗？"}
-    B -- 没满 --> C["追加进去"]
-    B -- 满了 --> D["覆盖一条旧事实"]
-    B -- 满了 --> E["干脆不写"]
-    D --> F["历史丢了。<br/>下个月：「我们当初为什么不这么做了？」"]
-    E --> G["下周再踩一次同样的坑。<br/>agent 忘了你说过。"]
+    A["又学到一条新事实"] --> B{"纸条还有地方吗"}
+    B -- "有" --> C["写上"]
+    B -- "没有" --> D["擦掉一条旧的"]
+    B -- "没有" --> E["算了，不写了"]
+    D --> F["历史没了<br/>下个月你问：我们当初为什么改掉了"]
+    E --> G["下周再犯一遍<br/>你上周才跟它讲过"]
     style F fill:#4a1f1f,stroke:#c96,color:#fff
     style G fill:#4a1f1f,stroke:#c96,color:#fff
 ```
 
-把记忆文件改大并不能解决它。上限是多少，你就会在第多少次撞上它 ——
-而且常驻记忆每多一个 token，是**每一轮对话**都要付的。
+换个更大的纸条行不行。行，但你会撞上同一堵墙，只是晚几周。而且纸条越大，每聊一句都多花一点钱。
 
-## 思路：把预算花在目录上
+## 所以拆成两层
 
 ```mermaid
 flowchart LR
-    Q["刚学到一条事实"] --> R{"下个会话<br/>还会用到吗？"}
-    R -- "每次都要" --> S["MEMORY.md 里一行<br/>事实 + 指针"]
-    R -- "有时要" --> T["wiki/topic.md 里一条 bullet"]
-    R -- "很少用，但必须查得到" --> U["一条 bullet + 纳入 lint 检查的笔记"]
-    S --> V["每行约 80 字"]
-    T --> W["无上限"]
+    Q["刚学到一条事实"] --> R{"下次开新对话<br/>还用得上吗"}
+    R -- "天天用" --> S["写进便签<br/>一句话加一个路标"]
+    R -- "偶尔用" --> T["写进抽屉里的笔记"]
+    R -- "很少用<br/>但必须找得到" --> U["也写笔记<br/>顺便让体检脚本盯着"]
+    S --> V["一行差不多 80 字"]
+    T --> W["没有上限"]
     U --> W
 ```
 
-判断口诀：**索引里放的是「提醒」和「指针」，不是知识本身。**
-如果一行话需要三句才说得清，它就该进笔记。
+判断口诀只有一句：便签上放提醒和路标，不放知识本身。一件事要三句才说得清，它就该进抽屉。
 
-## 同一个项目，前后对比
+## 三步就能用
 
-| | 全部塞上下文 | 分层 |
-|---|---|---|
-| 每轮注入 | 每条事实都被压缩到模糊 | 8–12 行指针 |
-| 细节在哪 | 哪儿都没有——被压缩掉了 | `wiki/*.md`，原文 |
-| 加第 41 条事实 | 覆盖某一条 | 追加一条 bullet |
-| 复盘记忆 | 读一大坨文字 | 读一行，需要再打开笔记 |
-| diff / 回滚 | 没有 | `git diff`、`git log` |
-
-## 快速开始
+第一步，装。
 
 ```bash
 git clone https://github.com/QINXIN111/tiered-memory.git
 cd tiered-memory
-python3 wikimem.py init                 # 生成 ~/.wikimem/{MEMORY.md,wiki/}
-wikimem scan                            # 这台机器上的 agent 都已经记住了什么？
-wikimem viz                             # 浏览器里打开记忆地图
-ln -s "$PWD/wikimem.py" ~/.local/bin/wikimem && chmod +x wikimem.py
+python3 wikimem.py init
 ```
+
+跑完会多一个 `~/.wikimem` 文件夹，里面一张便签（`MEMORY.md`）和一个抽屉（`wiki/`）。
+
+第二步，告诉 AI 规矩。在它的系统提示词里加一句：
+
+```
+记忆分两层。MEMORY.md 只是目录。
+看到 wiki:xxx，先用 wikimem show xxx 打开，别凭目录那行猜。
+```
+
+这句话是整个工具能用起来的关键。不加这句，AI 看见路标也不会走。
+
+第三步，平时这样用。
 
 ```console
-$ wikimem add infra "api 监听 8080；用 ./deploy.sh 部署"
-appended to wiki:infra
+$ wikimem add infra "接口跑在 8080，部署用 ./deploy.sh"
+写进 wiki:infra 了
 
-$ wikimem search "api 8080"
-wiki:infra:3  - [2026-11-12][you] api 监听 8080；用 ./deploy.sh 部署
+$ wikimem search "8080"
+wiki:infra:3  - [2026-11-12][you] 接口跑在 8080，部署用 ./deploy.sh
 
-$ wikimem show infra --grep 8080 --ctx 0
-  3| - [2026-11-12][you] api 监听 8080；用 ./deploy.sh 部署
+$ wikimem show infra --grep 8080
+  3| - [2026-11-12][you] 接口跑在 8080，部署用 ./deploy.sh
 ```
 
-然后在索引文件里加一行：
+当然你也可以什么都不记，直接跟 AI 说"这条记一下"，让它自己去敲命令。
 
-```
-infra: 端口、部署、回滚 → wiki:infra
-```
+## 让它给你画一张
 
-## agent 实际是怎么用的
+这张图不用你动手。跟 AI 说一句：
 
-```mermaid
-sequenceDiagram
-    participant U as 你
-    participant A as Agent
-    participant C as wikimem
-    participant D as 笔记
+> 把你记住的东西画成一张图给我
 
-    U->>A: 预发为什么慢？
-    A->>A: 读 MEMORY.md
-    Note over A: 见 "infra → wiki:infra"
-    A->>C: show infra --grep 预发
-    C->>D: grep
-    D-->>C: 3 行
-    C-->>A: 3 行
-    A-->>U: 回答 + 引用
-```
-
-两件事让它成立：
-
-1. 指针是**显式**的（`wiki:infra`），模型知道自己还有东西没看
-2. 查询**足够便宜** —— 一条命令、几行返回，不是整个文件
-
-**唯一的失败模式**：模型看见指针，直接用索引行回答。
-所以在索引文件第一行、agent 的系统提示词、review 清单里各写一遍：
-
-> 记忆是分层的，这个文件只是目录。看到 `wiki:xxx`，
-> 先跑 `wikimem show xxx` 再回答，不要凭索引行猜。
-
-## 给人看的地图（让 agent 帮你画）
-
-这张图不用你手动画。跟 agent 说一句就行：
-
-> 「把你记住的东西画成一张图给我」
-
-它会跑一条命令，然后把文件路径给你：
+它会跑一条命令，然后把文件位置告诉你：
 
 ```bash
-wikimem viz          # 生成 <root>/memory-map.html
+wikimem viz
 ```
 
-**它是个本地文件，不是一个服务。** 双击就能开：
+这是个本地文件，不是什么在线服务。双击就开：
 
 | | |
 |---|---|
-| 离线可用 | 从 `file://` 打开，不起服务、不占端口 |
-| 完全不联网 | 没有 CDN、没有外部字体、没有埋点统计 |
-| 什么都不上传 | 笔记内容以内联文本的形式写在这个 HTML 里 |
-| 不用清理 | 删掉文件就没了 |
-
-重点就在这：**agent 负责画，你负责看，记忆一步都不离开这台机器。**
+| 不联网 | 从本地文件打开，不起服务、不占端口 |
+| 不外传 | 笔记内容直接写在那个网页里，不发给任何人 |
+| 不用收拾 | 看完了删掉就行 |
 
 ![记忆地图](docs/viz.png)
 
-- **左边**：模型每轮真正看到的那几行（带复制按钮）
-- **右边**：磁盘上的笔记，点开就是每条事实
-- **搜索框**：输入 `deploy` 或 `8081`，命中的行会高亮
+左边是 AI 每次真正看到的那几行。右边是抽屉里的全部内容，点开就是一条条事实。上面还有个搜索框，输入"部署"或者"8080"，命中的行会亮起来。
 
-这也是「我的记忆去哪了？」的标准答案——小白会以为事实离开上下文就消失了，
-这张图把第二层摆在那里给他看。
+这也是"我的记忆去哪了"的标准答案。它没丢，只是从桌面挪进抽屉了。
 
-## 命令
+## 几个人一起用会不会打架
 
-| 命令 | 作用 |
-|---|---|
-| `wikimem init` | 建 `MEMORY.md`、`wiki/` 和一篇示例 |
-| `wikimem search "a b"` | 多词 AND，输出 `wiki:topic:行号` |
-| `wikimem show infra --grep port --ctx 2` | 只看命中行附近 |
-| `wikimem add infra "一句话"` | 追加带日期与署名的条目 `- [日期][agent] …` |
-| `wikimem lint` | 重复 / 未更新 / 版本冲突 / 索引超预算 |
-| `wikimem index` | 重建 `wiki/INDEX.md` |
-| `wikimem viz` | 生成一个本地离线的 HTML 记忆地图——不上传任何内容 |
-| `wikimem scan` | 列出本机所有 agent 的会话库——只读，不复制任何东西 |
-| `wikimem sync` | pull --rebase → commit → 推送到**所有** remote |
+会。所以定了四条规矩，工具已经替你执行：
 
-通用参数：`--root DIR`、`--index FILE`；`search`/`show`/`lint`/`sync` 支持 `--json`。
+1. 分区域。一个人管一本笔记，别人别碰，大部分冲突根本不会发生。
+2. 只往后加，不改旧的。每条前面自动记上日期和是谁写的，两句话打架就都留着，等人来判。
+3. 写完之前先拉一下。别人刚写的东西你立刻能看到，冲突当场冒出来，不用等下周。
+4. 打架了只报告，不和稀泥。同一个版本号出现两个值，脚本会喊你，不会自己挑一个。
 
-## lint 能抓什么
+最后这条最要紧。记忆系统最坑的错不是丢了一条，是两条不一样的记录被悄悄合成了一条假的，然后你拿它当真。
 
-```mermaid
-flowchart LR
-    L["wikimem lint"] --> A1["重复行<br/>同一句话出现在两处"]
-    L --> A2["过期笔记<br/>120 天没动过"]
-    L --> A3["版本冲突<br/>一篇里同时有 v1.2.0 和 v1.3.0"]
-    L --> A4["索引超预算<br/>MEMORY.md 超过 N 字"]
-    L --> A5["缺标题<br/>笔记没有 H1"]
-    style L fill:#1f3a2a,stroke:#5a9,color:#fff
-```
+## 它不干什么
 
-```console
-$ wikimem lint
-[duplicate] wiki:infra:9 ≈ wiki:infra:4
-[conflict] wiki:deploy has versions v1.2.0, v1.3.0
-[stale 143d] wiki:legacy
-[budget] 2410 chars > 2200 in ~/.wikimem/MEMORY.md
+不自动帮你总结。什么时候记、记什么，得有个判断。全自动的结果是把废话和一次性的结论都存成"事实"，以后天天误导你。
 
-4 problem(s)
-```
+不把所有内容都塞给 AI。那不叫记忆，那叫复读。
 
-它只**报告**，不改、不合并、不删除。删一条记忆是个判断，
-应该让人花五秒钟想一下。
+不用数据库。数据库里的东西不能用 git 看改动、不能回滚，换台电脑还得导出导入。纯文本加 Git 就够了。
 
-## 多个 agent，共用一份记忆
+## 常见问题
 
-```mermaid
-sequenceDiagram
-    participant A as Agent A（Claude Code）
-    participant B as Agent B（Codex）
-    participant G as git remote
+我不会命令行怎么办。让 AI 帮你跑。这个仓库本来就是给 agent 用的，你只要会说"记一下"和"给我看看"。
 
-    A->>G: sync（pull、commit、push）
-    B->>G: sync（pull、commit、push）
-    Note over A,B: 都写了 wiki/infra.md
-    G-->>A: rebase 保留双方，按日期
-    A->>A: lint → 版本冲突
-    Note over A: 去问人
-```
+我的笔记会被上传吗。不会。文件在你自己的硬盘上，`viz` 生成的那个网页也是本地文件，里面没有任何联网请求。
 
-四条规则，工具替你执行：
+会不会把密码写进去。规矩写死了一条：只记"在哪"，不记"是什么"。密码和密钥只存路径，不存内容。
 
-1. **按域分区** —— `wiki/<domain>/<topic>.md`，一个域一个写者。
-   两个 agent 不碰同一个文件，大部分冲突根本不会发生。
-2. **只追加，不改写** —— `add` 自动盖 `[日期][agent]`。两条互相矛盾的说法都留着，
-   由人或主 agent 裁决。
-3. **写前先拉** —— `sync` 先 `pull --rebase`，冲突在秒级暴露，而不是攒一周。
-4. **冲突只报告，不自动合并** —— lint 发现同一字段两个值就停在那里。
+记错了怎么办。用 `wikimem show` 看一眼，直接改那个 markdown 文件。想找回旧版本就用 git。
 
-> 记忆系统最危险的 bug 不是「缺了一条」，是「两条错的值被安静地合并了」。
+一定要用 Git 吗。不一定要，但建议用。它顺手给了你版本历史、冲突提醒和一份异地备份。
 
-### 为什么不用 CRDT / 中心记忆服务 / 共享 SQLite
+## 差不多的东西还有哪些
 
-| 方案 | 为什么不用 |
-|---|---|
-| CRDT | 为大规模协作编辑设计的；几百条事实用不上，复杂度远超收益 |
-| 中心记忆服务 | 单点故障，而且本来该离线可用的东西被绑上了网络 |
-| 共享 SQLite | 最后你要自己写锁和复制——等于做一个更差的 Git |
-| 向量库 | 见下 |
+这块地方挺挤的。别人怎么做，我们差在哪：
 
-选 Git 不是因为它先进，是因为**版本、冲突检测、审计、回滚、异地备份**
-一次性都给你了，而且是每个开发者本来就有的依赖。
-
-## 为什么是索引，不是向量库
-
-| | 向量库 | tiered-memory |
+| 项目 | 他们的做法 | 我们的不同 |
 |---|---|---|
-| 安装 | 嵌入模型 + 索引 + 服务 | 一个文件 |
-| 可解释 | "top-k 看起来像" | 直接看命中的那一行 |
-| 每次召回成本 | 一次模型调用 | 0 |
-| 可 diff | 否 | `git diff` |
-| 适用规模 | 百万级文档 | 几十到几百条事实 |
+| [ourmem/omem](https://github.com/ourmem/omem) | 跑一个记忆服务，多个工具接进去 | 我们就是几个文件，没有服务要维护 |
+| [bothouse](https://github.com/zuiho-kai/bothouse) | 把几个 AI 拉进一个群聊，共享一份记忆 | 我们不建群，只提供一份共享的笔记本 |
+| [opc-nexus](https://github.com/h4dex/opc-nexus) | 桌面管理器，每个项目的记忆互相隔离 | 反过来，我们优先共享，冲突靠规矩解决 |
 
-agent 的记忆是几十到几百条事实，不是文档库。几百 KB 的 grep 大约一毫秒，
-而且你能**看见**它为什么命中。
+一句话，别人多在解决"AI 之间怎么在运行时同步"，我们在解决"这份共同的记忆在硬盘上该长什么样，才能既省钱又查得到账"。
 
-## 同类项目
-
-"agent 共享记忆"已经是个拥挤的赛道。现有什么，以及这里的差别：
-
-| 项目 | 做法 | 差别 |
-|---|---|---|
-| [ourmem/omem](https://github.com/ourmem/omem) | 服务 + "spaces"，给多个 CLI 做插件 | 要跑服务；这里是文件 + Git，没有东西要运维 |
-| [mic1on/multi-agent-memory](https://github.com/mic1on/multi-agent-memory) | 本地优先的共享记忆（Codex / Pi / OpenCode / Claude Code） | 目标一样、存储不同；这里多了"上下文预算"这个显式模型 |
-| [one-bit/oc-mnemoria](https://github.com/one-bit/oc-mnemoria) | OpenCode 的「蜂巢记忆」，Rust 引擎 | 绑定引擎；这里是与 agent 无关的纯文本 |
-| TencentDB Agent Memory（Team Memory） | 托管记忆服务 | 云端；这里离线可用 |
-| [bothouse](https://github.com/zuiho-kai/bothouse) | 群聊 + 一份共享 Markdown 记忆 | 把 agent 关进聊天室；这里只提供共享**存储**，谁需要谁去读 |
-| [opc-nexus](https://github.com/h4dex/opc-nexus) | 桌面 agent 管理器，**按项目隔离**记忆 | 反向取舍：为了多租户安全牺牲共享 |
-
-一句话：大部分项目在解决「agent 之间怎么在运行时共享状态」，
-这个项目在解决「共享状态在磁盘上应该长什么样，才能既便宜、可 review、又能处理冲突」。
-
-## 它故意不做的事
-
-- **不自动抽取记忆**：写入是判断题；自动化会把噪声和一次性结论沉淀成"事实"，
-  之后反过来带偏 agent
-- **不全量注入**：全都塞进去，就回到了那堵墙
-- **不用数据库**：不能 `diff` 的东西，不配进记忆
-
-## 什么情况下别用它
-
-- 你要在几千篇长文档里做语义召回 → 用向量库
-- 你要多人实时共编一份文档 → 用 CRDT
-- 你希望 agent 完全自动管理记忆、不需要人判断 → 它会显得很受限，这是故意的
-
-## 仓库结构
+## 想自己看看代码
 
 ```
-wikimem.py              整个 CLI（341 行）
-tests/                  14 个 pytest 用例
-examples/               可以直接抄的一小份记忆根目录
-docs/design.md          更长的设计笔记：试过什么、否决了什么
+wikimem.py     全部命令（341 行）
+tests/         22 个测试
+examples/      一份可以直接抄的示例
+docs/design.md 更长的设计笔记，包括我们否决过什么
 ```
 
-## 协议
+如果你自己就是 AI，先读 [AGENTS.md](AGENTS.md)，那里写了读写这套记忆的规矩。
 
-MIT。
+## 许可
+
+MIT。拿去用，改，商用都行。
