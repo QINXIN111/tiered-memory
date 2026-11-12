@@ -9,8 +9,8 @@ The requirement was never "a better memory system". It was:
 > The always-injected memory file is capped at ~2,200 characters. When it fills up,
 > new facts have nowhere to go.
 
-Measured: 31 entries, 3,437 bytes, 99% of budget. At that point every new fact
-either overwrites an old one or is dropped. Both are silent failures.
+In a typical setup it fills up after a few dozen facts: every new fact then either
+overwrites an old one or is dropped. Both are silent failures.
 
 So the design goal became: **make the always-injected file a table of contents.**
 

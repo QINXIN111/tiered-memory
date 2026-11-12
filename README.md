@@ -4,149 +4,245 @@
 
 **Your agent's always-on memory file is full. Stop putting facts in it — put an index in it.**
 
-One 341-line file, zero dependencies that splits agent memory into two tiers:
+One 341-line file, zero dependencies. It splits agent memory into two tiers:
 
+- **in context:** a small index — one line per topic, plus a pointer
+- **on disk:** the details — plain Markdown, read only when needed
+
+No vector database. No embeddings. No service to run. Markdown, grep and Git.
+
+```mermaid
+flowchart LR
+    subgraph CTX["Context window — every turn, ~2,000 chars"]
+      IDX["MEMORY.md<br/>infra: ports, deploy → wiki:infra<br/>project: stack, commands → wiki:project<br/>decisions: why Postgres → wiki:decisions"]
+    end
+    subgraph DISK["Disk — unlimited, read on demand"]
+      N1["wiki/infra.md<br/>40 lines"]
+      N2["wiki/project.md<br/>25 lines"]
+      N3["wiki/decisions.md<br/>18 lines"]
+    end
+    IDX -. "wikimem show infra" .-> N1
+    IDX -. "wikimem show project" .-> N2
+    IDX -. "wikimem show decisions" .-> N3
 ```
-MEMORY.md      (small, always injected)   one line per topic + a wiki:<topic> pointer
-wiki/*.md      (unbounded, read on demand) the actual details
-```
 
-The agent reads the index on every turn. When it needs the details behind a pointer, it runs one command.
+## The problem, with a made-up project
 
-No vector database. No embeddings. No service. Just Markdown, grep and Git.
+Say you are building **aurora-api** — a small service, one agent helping you. Nothing
+exotic happens; you just keep telling it things.
 
-```
-$ wikimem search "api 8080"
-wiki:infra:4  - api listens on 8080; deploy via ./deploy.sh
-
-$ wikimem show infra --grep port
-  4| - api listens on 8080; deploy via ./deploy.sh
-  5| - staging is the same but on 8081
-```
-
----
-
-## The problem
-
-Every serious agent setup injects a memory file at session start: `MEMORY.md` in Hermes,
-`CLAUDE.md` in Claude Code, `AGENTS.md` in Codex. It is capped by the context budget,
-usually a couple thousand characters.
-
-Ours hit **99% full** — 31 long entries, 3,437 bytes. After that:
-
-- new facts either overwrite old ones (history lost), or
-- nothing gets written (the same mistake happens again next week)
-
-The fix is not "store more". It is **"spend the budget on a table of contents, not on content."**
-
-## What we ended up with
-
-| | before | after |
+| week | what the agent learns | memory file |
 |---|---|---|
-| always-injected file | 3,437 B / 31 entries | **1,727 B / 9 index lines** |
-| details | inside those 31 entries | 9 notes, 44 KB, read on demand |
-| budget used | 99% | **48%** |
+| 1 | stack, run command, port, deploy step | 8 facts — fits easily |
+| 3 | retry policy, the staging quirk, why no ORM | 25 facts — getting tight |
+| 6 | two incidents, a rollback procedure, three conventions | **40 facts — over the cap** |
 
-Nothing was lost: we diffed every constant (hostnames, ports, script names, invite codes)
-against the old file after the migration.
+At week 6 the file is full. From there every new fact has exactly two outcomes:
 
-## Install
+```mermaid
+flowchart TD
+    A["New fact discovered<br/>e.g. 'the worker must start after migrations'"] --> B{"Memory file full?"}
+    B -- no --> C["Append it"]
+    B -- yes --> D["Overwrite an older fact"]
+    B -- yes --> E["Don't write it at all"]
+    D --> F["History lost.<br/>Next month: 'why did we stop doing X?'"]
+    E --> G["Same mistake next week.<br/>The agent forgot what you told it."]
+    style F fill:#4a1f1f,stroke:#c96,color:#fff
+    style G fill:#4a1f1f,stroke:#c96,color:#fff
+```
+
+Adding a bigger memory file does not fix this. Whatever the cap is, you hit it again —
+and every extra token of always-on memory is paid on **every single turn**.
+
+## The idea: spend the budget on a table of contents
+
+```mermaid
+flowchart LR
+    Q["A fact you just learned"] --> R{"Needed in the<br/>next session?"}
+    R -- "every session" --> S["One line in MEMORY.md<br/>fact + pointer"]
+    R -- "sometimes" --> T["A bullet in wiki/topic.md"]
+    R -- "rarely, but must be findable" --> U["A bullet + a lint-checked note"]
+    S --> V["~80 characters each"]
+    T --> W["Unlimited"]
+    U --> W
+```
+
+Rule of thumb: **the index holds reminders and pointers, not knowledge.**
+If a line needs three sentences to be useful, it belongs in a note.
+
+## Before / after, same project
+
+| | all-in-context | tiered |
+|---|---|---|
+| always injected | every fact, compressed until vague | 8–12 pointer lines |
+| where details live | nowhere — they were compressed away | `wiki/*.md`, verbatim |
+| adding fact #41 | overwrite something | append a bullet |
+| reviewing | read a wall of text | read one line, open the note if needed |
+| diff / rollback | none | `git diff`, `git log` |
+
+## Quickstart
 
 ```bash
 git clone https://github.com/QINXIN111/tiered-memory.git
 cd tiered-memory
-python3 wikimem.py init          # creates ~/.wikimem/{MEMORY.md,wiki/}
+python3 wikimem.py init                 # creates ~/.wikimem/{MEMORY.md,wiki/}
+ln -s "$PWD/wikimem.py" ~/.local/bin/wikimem && chmod +x wikimem.py
 ```
 
-Optional — put it on your PATH:
+```console
+$ wikimem add infra "api listens on 8080; deploy via ./deploy.sh"
+appended to wiki:infra
 
-```bash
-mkdir -p ~/.local/bin
-ln -s "$PWD/wikimem.py" ~/.local/bin/wikimem
-chmod +x wikimem.py
+$ wikimem search "api 8080"
+wiki:infra:3  - [2026-11-12][you] api listens on 8080; deploy via ./deploy.sh
+
+$ wikimem show infra --grep 8080 --ctx 0
+  3| - [2026-11-12][you] api listens on 8080; deploy via ./deploy.sh
 ```
 
-No dependencies. Python 3.10+.
+Then add one line to your index file:
+
+```
+infra: ports, deploy, rollback → wiki:infra
+```
+
+## How the agent actually uses it
+
+```mermaid
+sequenceDiagram
+    participant U as You
+    participant A as Agent
+    participant C as wikimem
+    participant D as wiki/*.md
+
+    U->>A: "why is staging slow?"
+    A->>A: reads MEMORY.md (index only)
+    Note over A: sees "infra: ports, deploy → wiki:infra"
+    A->>C: wikimem show infra --grep staging
+    C->>D: grep the note
+    D-->>C: matching lines
+    C-->>A: 3 lines of context
+    A-->>U: answer, citing the actual note
+```
+
+Two things make this work:
+
+1. the pointer is **explicit** (`wiki:infra`), so the model knows there is more
+2. the lookup is **cheap** — one command, a few lines back, not a whole file
+
+**The one failure mode:** the model sees the pointer and answers from the index line anyway.
+Fix it in the index file's first line, in the agent's system prompt, and in review:
+
+> Memory is tiered. This file is only the index. If you see `wiki:xxx`,
+> run `wikimem show xxx` before answering. Never guess from the index line.
 
 ## Commands
 
 | command | what it does |
 |---|---|
-| `wikimem init` | create `MEMORY.md` + `wiki/` + a sample note |
+| `wikimem init` | create `MEMORY.md`, `wiki/`, and a sample note |
 | `wikimem search "a b"` | all words must match; prints `wiki:topic:line` |
-| `wikimem show infra --grep port --ctx 2` | print only the matching lines (`--ctx` = context) |
-| `wikimem add infra "text"` | append a stamped bullet: `- [2026-11-12][agent] text` |
-| `wikimem lint` | duplicates, notes untouched for 120 days, version conflicts, index budget |
+| `wikimem show infra --grep port --ctx 2` | only the matching lines, with context |
+| `wikimem add infra "text"` | append a stamped bullet `- [date][agent] text` |
+| `wikimem lint` | duplicates, stale notes, version conflicts, index budget |
 | `wikimem index` | rebuild `wiki/INDEX.md` |
 | `wikimem sync` | `git pull --rebase` → commit → push to **every** remote |
 
 Flags: `--root DIR`, `--index FILE`, `--json` on `search`/`show`/`lint`/`sync`.
 
-## How you use it with an agent
+## Lint: what it catches
 
-1. Tell the agent, once, in the index file itself:
+```mermaid
+flowchart LR
+    L["wikimem lint"] --> A1["duplicate lines<br/>same text in two places"]
+    L --> A2["stale notes<br/>untouched for 120 days"]
+    L --> A3["version conflicts<br/>v1.2.0 and v1.3.0 in one note"]
+    L --> A4["index budget<br/>MEMORY.md over N chars"]
+    L --> A5["missing title<br/>note without an H1"]
+    style L fill:#1f3a2a,stroke:#5a9,color:#fff
+```
 
-   ```
-   Memory is tiered. This file is only the index.
-   If you see wiki:xxx, run `wikimem show xxx` before answering. Never guess from the index line.
-   ```
+```console
+$ wikimem lint
+[duplicate] wiki:infra:9 ≈ wiki:infra:4
+[conflict] wiki:deploy has versions v1.2.0, v1.3.0
+[stale 143d] wiki:legacy
+[budget] 2410 chars > 2200 in ~/.wikimem/MEMORY.md
 
-2. When the agent learns something durable:
+4 problem(s)
+```
 
-   ```
-   $ wikimem add infra "api listens on 8080"
-   ```
+It only **reports**. It never edits, never merges, never deletes. Deleting a fact is a
+judgement call, and it should cost a human five seconds of thinking.
 
-   then add one line to `MEMORY.md`:
+## Multiple agents, one memory
 
-   ```
-   infra: hosts, ports, deploy steps → wiki:infra
-   ```
+```mermaid
+sequenceDiagram
+    participant A as Agent A (Claude Code)
+    participant B as Agent B (Codex)
+    participant G as git remote
 
-3. Cron `wikimem lint` weekly. It only reports; it never edits.
+    A->>G: wikimem sync (pull → commit → push)
+    B->>G: wikimem sync (pull → commit → push)
+    Note over A,B: both appended to wiki/infra.md
+    G-->>A: rebase keeps both bullets, ordered by date
+    A->>A: wikimem lint → "conflict: v1.2.0 vs v1.3.0"
+    Note over A: asks a human which one is true
+```
 
-## Why an index instead of a vector store
+Four rules, all enforced by the tool:
 
-| | vector DB | this |
-|---|---|---|
-| setup | embedding model, index, service | one file |
-| explainability | "the top-k looked similar" | you can read the line it matched |
-| cost | model calls on write and read | zero |
-| diff-able | no | `git diff` |
-| corpus size | scales to millions | fine to a few thousand facts |
-
-Agent memory is tens to hundreds of facts, not millions of documents. A grep over 44 KB
-returns in under a millisecond and you can *see* why it matched.
-
-## Many agents, one memory
-
-Multiple agents (Claude Code, Codex, Hermes, a local harness) writing to the same notes
-is where memory systems rot. Four rules, all enforced by the tool:
-
-1. **Partition by domain.** `wiki/<domain>/<topic>.md` — one writer per domain. Most
-   conflicts never happen because two agents never touch the same file.
-2. **Append, never rewrite.** `wikimem add` stamps `[date][agent]`. When two entries
-   disagree, both stay; a human or a lead agent decides.
-3. **Pull before you write, push when you are done.** `wikimem sync` does
-   `pull --rebase`, commit, push to every remote — conflicts surface in seconds,
-   not after a week.
-4. **Report conflicts, never auto-merge.** `wikimem lint` flags the same version
-   string with two different values. The tool never picks a winner.
-
-Why not CRDTs, a central memory service, or a shared SQLite? Because for a
-few hundred facts those add a service to operate, and Git already gives you
-versioning, conflict detection, auditing, rollback and a free off-site copy.
+1. **Partition by domain** — `wiki/<domain>/<topic>.md`, one writer per domain.
+   Most conflicts never happen because two agents never touch the same file.
+2. **Append, never rewrite** — `add` stamps `[date][agent]`. Two disagreeing entries
+   both survive; a human or a lead agent decides.
+3. **Pull before you write** — `sync` does `pull --rebase` first, so conflicts surface
+   in seconds instead of after a week.
+4. **Report conflicts, never auto-merge** — lint flags the same field with two values
+   and stops there.
 
 **The most dangerous memory bug is not a missing fact — it is a silently merged wrong one.**
 
+### Why not CRDTs / a memory service / shared SQLite
+
+| option | why not |
+|---|---|
+| CRDT | solves concurrent editing for large collaborative datasets; complexity dwarfs the benefit for a few hundred facts |
+| central memory service | a single point of failure, and it needs the network for something that should work offline |
+| shared SQLite | you end up writing your own locking and replication — a worse Git |
+| vector store | see below |
+
+Git is not chosen because it is modern. It is chosen because versioning, conflict
+detection, audit trail, rollback and off-site backup arrive in one dependency every
+developer already has.
+
+## Why an index instead of a vector store
+
+| | vector DB | tiered-memory |
+|---|---|---|
+| setup | embedding model, index, service | one file |
+| explainability | "top-k looked similar" | you can read the line it matched |
+| cost per recall | a model call | zero |
+| diff-able | no | `git diff` |
+| realistic corpus | millions of documents | tens to hundreds of facts |
+
+Agent memory is tens to hundreds of facts, not a document corpus. Grep over a few
+hundred kilobytes returns in about a millisecond — and you can *see* why it matched.
+
 ## What it deliberately does not do
 
-- **No automatic extraction.** Writing memory is a judgement call; automating it
-  turns noise and one-off conclusions into "facts".
-- **No full-text injection.** Only the index goes in. Loading everything is how you
-  get back to the 2,200-character wall.
-- **No database.** Markdown + Git is the storage layer. If a tool can't `diff` it,
-  it doesn't belong in memory.
+- **No automatic extraction.** Writing memory is a judgement call; automation turns
+  noise and one-off conclusions into "facts" that later steer the agent.
+- **No full-context injection.** Loading everything is how you get back to the wall.
+- **No database.** If a tool can't `diff` it, it doesn't belong in memory.
+
+## When this is the wrong tool
+
+- You need semantic recall over thousands of long documents → use a vector store.
+- You need real-time multi-writer editing of one shared document → CRDT.
+- You want the agent to manage memory with zero human judgement → this will feel
+  restrictive on purpose.
 
 ## Repo layout
 
@@ -154,13 +250,9 @@ versioning, conflict detection, auditing, rollback and a free off-site copy.
 wikimem.py              the whole CLI (341 lines)
 tests/                  14 pytest cases
 examples/               a small memory root you can copy
-docs/design.md          longer design notes: what we tried, what we rejected
+docs/design.md          longer notes: what we tried, what we rejected
 ```
 
-## Status
-
-Extracted from a production agent setup that has been running this way since 2026-11,
-with two private Git remotes and a nightly sync. Battle-tested against one very messy
-real workload; the API may still change.
+## License
 
 MIT.
