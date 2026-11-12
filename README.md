@@ -257,6 +257,23 @@ developer already has.
 Agent memory is tens to hundreds of facts, not a document corpus. Grep over a few
 hundred kilobytes returns in about a millisecond — and you can *see* why it matched.
 
+## Related work
+
+"Shared memory for agents" is a crowded space. What exists, and where this differs:
+
+| project | approach | difference |
+|---|---|---|
+| [ourmem/omem](https://github.com/ourmem/omem) | service + "spaces", plugins for multiple CLIs | runtime service; this is files + Git, nothing to operate |
+| [mic1on/multi-agent-memory](https://github.com/mic1on/multi-agent-memory) | local-first shared memory for Codex / Pi / OpenCode / Claude Code | same goal, different storage; this adds an explicit context-budget model |
+| [one-bit/oc-mnemoria](https://github.com/one-bit/oc-mnemoria) | "hive mind" for OpenCode, Rust engine | engine-bound; this is agent-agnostic plain text |
+| TencentDB Agent Memory (Team Memory) | managed memory service | hosted; this runs offline |
+| [bothouse](https://github.com/zuiho-kai/bothouse) | group chat + one shared Markdown memory | puts agents in a chat room; this keeps a shared *store* and lets each agent read what it needs |
+| [opc-nexus](https://github.com/h4dex/opc-nexus) | desktop agent manager, **isolates** memory per project | the opposite trade-off: isolation for multi-tenant safety |
+
+The short version: most projects solve "how do agents share state at runtime".
+This one solves "what should shared state look like on disk so that sharing stays
+cheap, reviewable and conflict-aware".
+
 ## What it deliberately does not do
 
 - **No automatic extraction.** Writing memory is a judgement call; automation turns

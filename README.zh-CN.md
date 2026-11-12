@@ -253,6 +253,22 @@ sequenceDiagram
 agent 的记忆是几十到几百条事实，不是文档库。几百 KB 的 grep 大约一毫秒，
 而且你能**看见**它为什么命中。
 
+## 同类项目
+
+"agent 共享记忆"已经是个拥挤的赛道。现有什么，以及这里的差别：
+
+| 项目 | 做法 | 差别 |
+|---|---|---|
+| [ourmem/omem](https://github.com/ourmem/omem) | 服务 + "spaces"，给多个 CLI 做插件 | 要跑服务；这里是文件 + Git，没有东西要运维 |
+| [mic1on/multi-agent-memory](https://github.com/mic1on/multi-agent-memory) | 本地优先的共享记忆（Codex / Pi / OpenCode / Claude Code） | 目标一样、存储不同；这里多了"上下文预算"这个显式模型 |
+| [one-bit/oc-mnemoria](https://github.com/one-bit/oc-mnemoria) | OpenCode 的「蜂巢记忆」，Rust 引擎 | 绑定引擎；这里是与 agent 无关的纯文本 |
+| TencentDB Agent Memory（Team Memory） | 托管记忆服务 | 云端；这里离线可用 |
+| [bothouse](https://github.com/zuiho-kai/bothouse) | 群聊 + 一份共享 Markdown 记忆 | 把 agent 关进聊天室；这里只提供共享**存储**，谁需要谁去读 |
+| [opc-nexus](https://github.com/h4dex/opc-nexus) | 桌面 agent 管理器，**按项目隔离**记忆 | 反向取舍：为了多租户安全牺牲共享 |
+
+一句话：大部分项目在解决「agent 之间怎么在运行时共享状态」，
+这个项目在解决「共享状态在磁盘上应该长什么样，才能既便宜、可 review、又能处理冲突」。
+
 ## 它故意不做的事
 
 - **不自动抽取记忆**：写入是判断题；自动化会把噪声和一次性结论沉淀成"事实"，
