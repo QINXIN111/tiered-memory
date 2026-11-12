@@ -2,7 +2,7 @@
 
 **Your agent's always-on memory file is full. Stop putting facts in it — put an index in it.**
 
-A 400-line, dependency-free CLI that splits agent memory into two tiers:
+One 341-line file, zero dependencies that splits agent memory into two tiers:
 
 ```
 MEMORY.md      (small, always injected)   one line per topic + a wiki:<topic> pointer
@@ -149,7 +149,7 @@ versioning, conflict detection, auditing, rollback and a free off-site copy.
 ## Repo layout
 
 ```
-wikimem.py              the whole CLI (~400 lines)
+wikimem.py              the whole CLI (341 lines)
 tests/                  14 pytest cases
 examples/               a small memory root you can copy
 docs/design.md          longer design notes: what we tried, what we rejected
