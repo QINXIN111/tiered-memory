@@ -141,6 +141,26 @@ sequenceDiagram
 > 记忆是分层的，这个文件只是目录。看到 `wiki:xxx`，
 > 先跑 `wikimem show xxx` 再回答，不要凭索引行猜。
 
+## 给人看的地图
+
+终端是给 agent 用的，人需要**看见**它到底记住了什么。
+
+```bash
+wikimem viz          # 生成 <root>/memory-map.html
+```
+
+一个自包含的 HTML 文件——不用起服务、不联网、不用构建。里面能看到：
+进上下文的索引、磁盘上的每篇笔记、预算条、以及 lint 查出的问题。
+
+![记忆地图](docs/viz.png)
+
+- **左边**：模型每轮真正看到的那几行（带复制按钮）
+- **右边**：磁盘上的笔记，点开就是每条事实
+- **搜索框**：输入 `deploy` 或 `8081`，所有笔记里命中的行都会高亮
+
+这也是「我的记忆去哪了？」的标准答案——小白会以为事实离开上下文就消失了，
+这张图把第二层摆在那里给他看。
+
 ## 命令
 
 | 命令 | 作用 |
@@ -151,6 +171,7 @@ sequenceDiagram
 | `wikimem add infra "一句话"` | 追加带日期与署名的条目 `- [日期][agent] …` |
 | `wikimem lint` | 重复 / 未更新 / 版本冲突 / 索引超预算 |
 | `wikimem index` | 重建 `wiki/INDEX.md` |
+| `wikimem viz` | 生成一个自包含的 HTML 记忆地图（不用起服务） |
 | `wikimem sync` | pull --rebase → commit → 推送到**所有** remote |
 
 通用参数：`--root DIR`、`--index FILE`；`search`/`show`/`lint`/`sync` 支持 `--json`。

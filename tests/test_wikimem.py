@@ -132,3 +132,19 @@ def test_root_flag_after_subcommand(tmp_path, capsys):
     assert wikimem.main(["init", "--root", str(target)]) == 0
     capsys.readouterr()
     assert (target / "wiki" / "project.md").exists()
+
+
+def test_viz_writes_html(root, tmp_path, capsys):
+    wikimem.main(["add", "infra", "api listens on 8080"])
+    capsys.readouterr()
+    out = tmp_path / "map.html"
+    assert wikimem.main(["viz", "-o", str(out)]) == 0
+    html = out.read_text()
+    assert "api listens on 8080" in html
+    assert "<script>" in html and "wiki:infra" in html
+
+
+def test_viz_default_path(root, capsys):
+    assert wikimem.main(["viz"]) == 0
+    capsys.readouterr()
+    assert (root / "memory-map.html").exists()

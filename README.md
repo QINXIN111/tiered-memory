@@ -141,6 +141,27 @@ Fix it in the index file's first line, in the agent's system prompt, and in revi
 > Memory is tiered. This file is only the index. If you see `wiki:xxx`,
 > run `wikimem show xxx` before answering. Never guess from the index line.
 
+## A map for humans
+
+Terminals are fine for agents. Humans need to *see* what the agent remembers.
+
+```bash
+wikimem viz          # writes <root>/memory-map.html
+```
+
+One self-contained HTML file — no server, no network, no build step. It shows the
+index that goes into context, every note on disk, a budget bar, and any lint issues.
+
+![memory map](docs/viz.png)
+
+- **left:** exactly what the model sees every turn (with a copy button)
+- **right:** the notes, newest first, click to expand
+- **filter box:** type `deploy` or `8081` and every matching fact across all notes
+  lights up — useful when you are not sure which note holds the answer
+
+This is also the answer to "where did my memory go?" — beginners assume facts vanish
+when they leave the context window. The map shows the second tier sitting there.
+
 ## Commands
 
 | command | what it does |
@@ -151,6 +172,7 @@ Fix it in the index file's first line, in the agent's system prompt, and in revi
 | `wikimem add infra "text"` | append a stamped bullet `- [date][agent] text` |
 | `wikimem lint` | duplicates, stale notes, version conflicts, index budget |
 | `wikimem index` | rebuild `wiki/INDEX.md` |
+| `wikimem viz` | write a self-contained HTML memory map (no server) |
 | `wikimem sync` | `git pull --rebase` → commit → push to **every** remote |
 
 Flags: `--root DIR`, `--index FILE`, `--json` on `search`/`show`/`lint`/`sync`.
