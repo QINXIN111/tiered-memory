@@ -147,52 +147,37 @@ sequenceDiagram
 > 记忆是分层的，这个文件只是目录。看到 `wiki:xxx`，
 > 先跑 `wikimem show xxx` 再回答，不要凭索引行猜。
 
-## 给人看的地图
+## 给人看的地图（让 agent 帮你画）
 
-终端是给 agent 用的，人需要**看见**它到底记住了什么。
+这张图不用你手动画。跟 agent 说一句就行：
+
+> 「把你记住的东西画成一张图给我」
+
+它会跑一条命令，然后把文件路径给你：
 
 ```bash
 wikimem viz          # 生成 <root>/memory-map.html
 ```
 
-一个自包含的 HTML 文件——不用起服务、不联网、不用构建。里面能看到：
-进上下文的索引、磁盘上的每篇笔记、预算条、以及 lint 查出的问题。
+**它是个本地文件，不是一个服务。** 双击就能开：
+
+| | |
+|---|---|
+| 离线可用 | 从 `file://` 打开，不起服务、不占端口 |
+| 完全不联网 | 没有 CDN、没有外部字体、没有埋点统计 |
+| 什么都不上传 | 笔记内容以内联文本的形式写在这个 HTML 里 |
+| 不用清理 | 删掉文件就没了 |
+
+重点就在这：**agent 负责画，你负责看，记忆一步都不离开这台机器。**
 
 ![记忆地图](docs/viz.png)
 
 - **左边**：模型每轮真正看到的那几行（带复制按钮）
 - **右边**：磁盘上的笔记，点开就是每条事实
-- **搜索框**：输入 `deploy` 或 `8081`，所有笔记里命中的行都会高亮
+- **搜索框**：输入 `deploy` 或 `8081`，命中的行会高亮
 
 这也是「我的记忆去哪了？」的标准答案——小白会以为事实离开上下文就消失了，
 这张图把第二层摆在那里给他看。
-
-## 这台机器上已经有哪些记忆
-
-你机器上大概率装着好几个 agent，每个都有自己的历史。不该让你自己去翻：
-
-```console
-$ wikimem scan
-agent           sessions  messages     size  last activity
-Claude Code           38      1240    46.2MB  2026-11-12 09:14
-Codex                 12       310     8.4MB  2026-11-11 22:03
-OpenCode / Pi          7        21    23.1MB  2026-11-12 05:32
-Hermes              1055    137529     1.8GB  2026-11-12 21:17
-
-4 store(s). Nothing was copied or modified — read-only.
-```
-
-它就地在原位置读（Claude Code / Codex / Gemini 是 JSONL，OpenCode 和 Hermes 是 SQLite），
-统计会话数、消息数、最后活动时间，并显示最后一句提示词。
-**它绝不把别的 agent 的对话原文拷进你的记忆** —— 要不要总结、总结成几条，
-由你用 `wikimem add` 决定。
-
-`wikimem viz` 的底部也是同一张表：
-
-![会话](docs/sessions.png)
-
-目前支持：Claude Code、Codex、Gemini CLI、OpenCode/Pi、Hermes。
-不认识的库跳过，读坏的库显示错误但不会让整个扫描崩掉。
 
 ## 命令
 
@@ -204,7 +189,7 @@ Hermes              1055    137529     1.8GB  2026-11-12 21:17
 | `wikimem add infra "一句话"` | 追加带日期与署名的条目 `- [日期][agent] …` |
 | `wikimem lint` | 重复 / 未更新 / 版本冲突 / 索引超预算 |
 | `wikimem index` | 重建 `wiki/INDEX.md` |
-| `wikimem viz` | 生成一个自包含的 HTML 记忆地图（不用起服务） |
+| `wikimem viz` | 生成一个本地离线的 HTML 记忆地图——不上传任何内容 |
 | `wikimem scan` | 列出本机所有 agent 的会话库——只读，不复制任何东西 |
 | `wikimem sync` | pull --rebase → commit → 推送到**所有** remote |
 

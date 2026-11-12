@@ -148,54 +148,38 @@ Fix it in the index file's first line, in the agent's system prompt, and in revi
 > Memory is tiered. This file is only the index. If you see `wiki:xxx`,
 > run `wikimem show xxx` before answering. Never guess from the index line.
 
-## A map for humans
+## A map for humans (ask your agent for it)
 
-Terminals are fine for agents. Humans need to *see* what the agent remembers.
+You do not draw this by hand. You ask your agent, in one sentence:
+
+> "draw me a map of what you remember"
+
+The agent runs one command and hands you a file path:
 
 ```bash
 wikimem viz          # writes <root>/memory-map.html
 ```
 
-One self-contained HTML file — no server, no network, no build step. It shows the
-index that goes into context, every note on disk, a budget bar, and any lint issues.
+**It is a local file, not a service.** Open it with a double click:
+
+| | |
+|---|---|
+| runs offline | opens from `file://`, no server, no port |
+| no network at all | no CDN, no fonts, no telemetry, no analytics |
+| nothing uploaded | the HTML embeds your notes as text in the file itself |
+| nothing to clean up | delete the file and it is gone |
+
+That is the whole point: the agent does the drawing, you get a picture, and your
+memory never leaves the machine.
 
 ![memory map](docs/viz.png)
 
 - **left:** exactly what the model sees every turn (with a copy button)
-- **right:** the notes, newest first, click to expand
-- **filter box:** type `deploy` or `8081` and every matching fact across all notes
-  lights up — useful when you are not sure which note holds the answer
+- **right:** the notes, click to expand
+- **filter:** type `deploy` or `8081` and every matching fact lights up
 
-This is also the answer to "where did my memory go?" — beginners assume facts vanish
-when they leave the context window. The map shows the second tier sitting there.
-
-## What this machine already remembers
-
-You probably have several agents installed, each with its own history. You should not
-have to hunt for it:
-
-```console
-$ wikimem scan
-agent           sessions  messages     size  last activity
-Claude Code           38      1240    46.2MB  2026-11-12 09:14
-Codex                 12       310     8.4MB  2026-11-11 22:03
-OpenCode / Pi          7        21    23.1MB  2026-11-12 05:32
-Hermes              1055    137529     1.8GB  2026-11-12 21:17
-
-4 store(s). Nothing was copied or modified — read-only.
-```
-
-It reads the stores in place (JSONL for Claude Code / Codex / Gemini, SQLite for
-OpenCode and Hermes), counts sessions and messages, and shows the last prompt.
-**It never copies another agent's transcript into your memory** — you decide what to
-summarise with `wikimem add`.
-
-The same table appears at the bottom of `wikimem viz`:
-
-![sessions](docs/sessions.png)
-
-Adapters today: Claude Code, Codex, Gemini CLI, OpenCode/Pi, Hermes. Unknown stores
-are skipped, and a broken store shows an error instead of crashing the scan.
+This also answers "where did my memory go?" — beginners assume facts vanish when they
+leave the context window. The map shows the second tier sitting right there.
 
 ## Commands
 
@@ -207,7 +191,7 @@ are skipped, and a broken store shows an error instead of crashing the scan.
 | `wikimem add infra "text"` | append a stamped bullet `- [date][agent] text` |
 | `wikimem lint` | duplicates, stale notes, version conflicts, index budget |
 | `wikimem index` | rebuild `wiki/INDEX.md` |
-| `wikimem viz` | write a self-contained HTML memory map (no server) |
+| `wikimem viz` | write a local, offline HTML memory map — nothing uploaded |
 | `wikimem scan` | list local agent session stores — read-only, nothing copied |
 | `wikimem sync` | `git pull --rebase` → commit → push to **every** remote |
 

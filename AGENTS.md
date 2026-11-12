@@ -50,6 +50,15 @@ If you are asked to "remember what the other agent did", summarise it into one
 or two bullets with `wikimem add`, and say where it came from. Do not paste
 transcripts — that is how a memory budget dies.
 
+## When the human says "show me what you remember"
+
+Run `wikimem viz` and give them the path it prints. Do not upload the file, do not
+paste the notes into a chat, do not offer to "host" it — the HTML is self-contained
+and opens from disk.
+
+If they ask for it in another language or with different data, regenerate the file;
+do not edit it by hand.
+
 ## Before you finish a task
 
 ```bash
