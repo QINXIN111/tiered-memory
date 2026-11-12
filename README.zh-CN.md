@@ -4,6 +4,8 @@
 
 [![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
 
+**[▶ 在线演示](https://htmlpreview.github.io/?https://github.com/QINXIN111/tiered-memory/blob/master/docs/demo.html)** — 点开就能逛一个示例记忆地图，不用安装。
+
 **你的 agent 常驻记忆文件满了。别再往里塞事实——往里放目录。**
 
 一个零依赖的 341 行脚本，把 agent 记忆拆成两层：

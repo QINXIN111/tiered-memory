@@ -4,6 +4,8 @@
 
 [![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
 
+**[▶ Live demo](https://htmlpreview.github.io/?https://github.com/QINXIN111/tiered-memory/blob/master/docs/demo.html)** — click around a sample memory map, nothing to install.
+
 **Your agent's always-on memory file is full. Stop putting facts in it — put an index in it.**
 
 One 341-line file, zero dependencies. It splits agent memory into two tiers:
