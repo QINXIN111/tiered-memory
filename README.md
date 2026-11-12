@@ -37,11 +37,12 @@ exotic happens; you just keep telling it things.
 | 3 | retry policy, the staging quirk, why no ORM | 25 facts — getting tight |
 | 6 | two incidents, a rollback procedure, three conventions | **40 facts — over the cap** |
 
-At week 6 the file is full. From there every new fact has exactly two outcomes:
+At week 6 the file is full. Take a concrete example — the agent learns that the worker
+must start after migrations. From there it has exactly two outcomes:
 
 ```mermaid
 flowchart TD
-    A["New fact discovered<br/>e.g. 'the worker must start after migrations'"] --> B{"Memory file full?"}
+    A["New fact discovered"] --> B{"Memory file full?"}
     B -- no --> C["Append it"]
     B -- yes --> D["Overwrite an older fact"]
     B -- yes --> E["Don't write it at all"]
