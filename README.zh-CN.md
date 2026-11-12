@@ -13,6 +13,8 @@
 
 不用向量库、不用嵌入模型、不用起服务。就是 Markdown + grep + Git。
 
+> **如果你是 AI agent**：先读 [AGENTS.md](AGENTS.md) —— 那是读写这套记忆时必须遵守的契约。
+
 <img src="docs/demo.gif" width="820" alt="wikimem：init、add、search、show、lint">
 
 ```mermaid
@@ -91,6 +93,8 @@ flowchart LR
 git clone https://github.com/QINXIN111/tiered-memory.git
 cd tiered-memory
 python3 wikimem.py init                 # 生成 ~/.wikimem/{MEMORY.md,wiki/}
+wikimem scan                            # 这台机器上的 agent 都已经记住了什么？
+wikimem viz                             # 浏览器里打开记忆地图
 ln -s "$PWD/wikimem.py" ~/.local/bin/wikimem && chmod +x wikimem.py
 ```
 
@@ -161,6 +165,33 @@ wikimem viz          # 生成 <root>/memory-map.html
 这也是「我的记忆去哪了？」的标准答案——小白会以为事实离开上下文就消失了，
 这张图把第二层摆在那里给他看。
 
+## 这台机器上已经有哪些记忆
+
+你机器上大概率装着好几个 agent，每个都有自己的历史。不该让你自己去翻：
+
+```console
+$ wikimem scan
+agent           sessions  messages     size  last activity
+Claude Code           38      1240    46.2MB  2026-11-12 09:14
+Codex                 12       310     8.4MB  2026-11-11 22:03
+OpenCode / Pi          7        21    23.1MB  2026-11-12 05:32
+Hermes              1055    137529     1.8GB  2026-11-12 21:17
+
+4 store(s). Nothing was copied or modified — read-only.
+```
+
+它就地在原位置读（Claude Code / Codex / Gemini 是 JSONL，OpenCode 和 Hermes 是 SQLite），
+统计会话数、消息数、最后活动时间，并显示最后一句提示词。
+**它绝不把别的 agent 的对话原文拷进你的记忆** —— 要不要总结、总结成几条，
+由你用 `wikimem add` 决定。
+
+`wikimem viz` 的底部也是同一张表：
+
+![会话](docs/sessions.png)
+
+目前支持：Claude Code、Codex、Gemini CLI、OpenCode/Pi、Hermes。
+不认识的库跳过，读坏的库显示错误但不会让整个扫描崩掉。
+
 ## 命令
 
 | 命令 | 作用 |
@@ -172,6 +203,7 @@ wikimem viz          # 生成 <root>/memory-map.html
 | `wikimem lint` | 重复 / 未更新 / 版本冲突 / 索引超预算 |
 | `wikimem index` | 重建 `wiki/INDEX.md` |
 | `wikimem viz` | 生成一个自包含的 HTML 记忆地图（不用起服务） |
+| `wikimem scan` | 列出本机所有 agent 的会话库——只读，不复制任何东西 |
 | `wikimem sync` | pull --rebase → commit → 推送到**所有** remote |
 
 通用参数：`--root DIR`、`--index FILE`；`search`/`show`/`lint`/`sync` 支持 `--json`。

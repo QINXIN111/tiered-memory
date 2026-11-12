@@ -148,3 +148,64 @@ def test_viz_default_path(root, capsys):
     assert wikimem.main(["viz"]) == 0
     capsys.readouterr()
     assert (root / "memory-map.html").exists()
+
+
+def test_scan_claude_reads_jsonl(tmp_path, monkeypatch):
+    import json as _json
+    import sessions as S
+
+    fake = tmp_path / "home"
+    d = fake / ".claude" / "projects" / "-tmp-proj"
+    d.mkdir(parents=True)
+    lines = [
+        {"type": "user", "timestamp": "2026-11-01T10:00:00", "message": {"content": "fix the login bug"}},
+        {"type": "assistant", "timestamp": "2026-11-01T10:00:05", "message": {"content": "ok"}},
+        {"type": "user", "timestamp": "2026-11-02T09:00:00", "message": {"content": "now add tests"}},
+    ]
+    (d / "s1.jsonl").write_text("\n".join(_json.dumps(x) for x in lines))
+
+    monkeypatch.setattr(S, "HOME", fake)
+    row = S.scan_claude()
+    assert row and row["sessions"] == 1
+    assert row["messages"] == 3
+    assert "add tests" in row["sample"]
+
+
+def test_scan_opencode_reads_sqlite(tmp_path, monkeypatch):
+    import sqlite3
+    import sessions as S
+
+    fake = tmp_path / "home"
+    d = fake / ".local" / "share" / "opencode"
+    d.mkdir(parents=True)
+    db = d / "opencode.db"
+    c = sqlite3.connect(db)
+    c.execute("create table session_v2 (id text, title text)")
+    c.execute("create table session_message (id text, session_id text, time_created int)")
+    c.execute("insert into session_v2 values ('a','first chat')")
+    c.execute("insert into session_message values ('m1','a',1794000000)")
+    c.commit()
+    c.close()
+
+    monkeypatch.setattr(S, "HOME", fake)
+    row = S.scan_opencode()
+    assert row and row["sessions"] == 1 and row["messages"] == 1
+    assert row["sample"] == "first chat"
+
+
+def test_scan_is_empty_and_silent_on_bare_machine(tmp_path, monkeypatch):
+    import sessions as S
+
+    monkeypatch.setattr(S, "HOME", tmp_path / "empty")
+    (tmp_path / "empty").mkdir()
+    assert S.scan() == []
+
+
+def test_scan_cli_reports_nothing(tmp_path, monkeypatch, capsys):
+    import sessions as S
+
+    monkeypatch.setattr(S, "HOME", tmp_path / "empty2")
+    (tmp_path / "empty2").mkdir()
+    capsys.readouterr()
+    assert wikimem.main(["scan"]) == 1
+    assert "no agent session stores" in capsys.readouterr().out

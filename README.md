@@ -13,6 +13,9 @@ One 341-line file, zero dependencies. It splits agent memory into two tiers:
 
 No vector database. No embeddings. No service to run. Markdown, grep and Git.
 
+> **If you are an AI agent:** read [AGENTS.md](AGENTS.md) first — it is the contract for
+> reading and writing this memory without corrupting it.
+
 <img src="docs/demo.gif" width="820" alt="wikimem: init, add, search, show, lint in the terminal">
 
 ```mermaid
@@ -91,6 +94,8 @@ If a line needs three sentences to be useful, it belongs in a note.
 git clone https://github.com/QINXIN111/tiered-memory.git
 cd tiered-memory
 python3 wikimem.py init                 # creates ~/.wikimem/{MEMORY.md,wiki/}
+wikimem scan                            # what do the agents on this machine already know?
+wikimem viz                             # open the map in a browser
 ln -s "$PWD/wikimem.py" ~/.local/bin/wikimem && chmod +x wikimem.py
 ```
 
@@ -162,6 +167,34 @@ index that goes into context, every note on disk, a budget bar, and any lint iss
 This is also the answer to "where did my memory go?" — beginners assume facts vanish
 when they leave the context window. The map shows the second tier sitting there.
 
+## What this machine already remembers
+
+You probably have several agents installed, each with its own history. You should not
+have to hunt for it:
+
+```console
+$ wikimem scan
+agent           sessions  messages     size  last activity
+Claude Code           38      1240    46.2MB  2026-11-12 09:14
+Codex                 12       310     8.4MB  2026-11-11 22:03
+OpenCode / Pi          7        21    23.1MB  2026-11-12 05:32
+Hermes              1055    137529     1.8GB  2026-11-12 21:17
+
+4 store(s). Nothing was copied or modified — read-only.
+```
+
+It reads the stores in place (JSONL for Claude Code / Codex / Gemini, SQLite for
+OpenCode and Hermes), counts sessions and messages, and shows the last prompt.
+**It never copies another agent's transcript into your memory** — you decide what to
+summarise with `wikimem add`.
+
+The same table appears at the bottom of `wikimem viz`:
+
+![sessions](docs/sessions.png)
+
+Adapters today: Claude Code, Codex, Gemini CLI, OpenCode/Pi, Hermes. Unknown stores
+are skipped, and a broken store shows an error instead of crashing the scan.
+
 ## Commands
 
 | command | what it does |
@@ -173,6 +206,7 @@ when they leave the context window. The map shows the second tier sitting there.
 | `wikimem lint` | duplicates, stale notes, version conflicts, index budget |
 | `wikimem index` | rebuild `wiki/INDEX.md` |
 | `wikimem viz` | write a self-contained HTML memory map (no server) |
+| `wikimem scan` | list local agent session stores — read-only, nothing copied |
 | `wikimem sync` | `git pull --rebase` → commit → push to **every** remote |
 
 Flags: `--root DIR`, `--index FILE`, `--json` on `search`/`show`/`lint`/`sync`.

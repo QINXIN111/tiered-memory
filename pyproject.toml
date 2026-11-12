@@ -13,3 +13,6 @@ wikimem = "wikimem:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.setuptools]
+py-modules = ["wikimem", "sessions"]
