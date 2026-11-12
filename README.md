@@ -4,7 +4,7 @@
 
 [![tests](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml/badge.svg)](https://github.com/QINXIN111/tiered-memory/actions/workflows/ci.yml)
 
-**Want to see it before installing? Open [`docs/demo.html`](docs/demo.html) locally — a sample memory map, no server needed.
+Want to see it before installing? Open [`docs/demo.html`](docs/demo.html) locally — a sample memory map, no server needed.
 
 **Your agent's always-on memory file is full. Stop putting facts in it — put an index in it.**
 
